@@ -1,0 +1,58 @@
+name: Deploy Laravel Savan Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: [8.2.9]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Set up PHP ${{ matrix.php-version }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+
+      - name: Upload Files to Server via SSH Key
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.VM_SSH_HOST }}
+          username: ${{ secrets.SSH_USER_NAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
+          source: .
+          target: /home/saajra-api/htdocs/api.saajra.com
+          debug: true
+
+      - name: Run Deployment Commands over SSH Key
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VM_SSH_HOST }}
+          username: ${{ secrets.SSH_USER_NAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
+          script: |
+            cd /home/saajra-api/htdocs/api.saajra.com
+            sudo -u www-data composer install --no-interaction --optimize-autoloader --no-dev
+            sudo -u www-data php artisan key:generate
+            sudo -u www-data php artisan optimize:clear
+            sudo -u www-data php artisan cache:clear
+            sudo -u www-data php artisan route:cache
+            sudo -u www-data php artisan route:clear
+            sudo -u www-data php artisan view:clear
+            sudo -u www-data php artisan config:cache
+            sudo -u www-data php artisan db:seed
+            sudo chown -R www-data:www-data /home/saajra-api/htdocs/api.saajra.com
+            chmod -R 755 /home/saajra-api/htdocs/api.saajra.com
+            chmod -R 777 /home/saajra-api/htdocs/api.saajra.com/storage
+            chmod -R 777 /home/saajra-api/htdocs/api.saajra.com/bootstrap
+            chmod -R 777 /home/saajra-api/htdocs/api.saajra.com/public
