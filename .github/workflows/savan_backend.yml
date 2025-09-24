@@ -1,58 +1,82 @@
-name: Deploy Laravel Savan Backend
+name: Deploy Savan Backend App (main)
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        php-version: [8.2.9]
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up PHP ${{ matrix.php-version }}
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php-version }}
+      # Create an archive of the repo at HEAD (no .git / node_modules)
+      - name: Package code
+        run: |
+          git archive --format=tar.gz -o deploy.tgz HEAD
+          ls -lh deploy.tgz
 
-      - name: Upload Files to Server via SSH Key
+      - name: Upload code to server (scp)
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.VM_SSH_HOST }}
           username: ${{ secrets.SSH_USER_NAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          port: 22
-          source: .
-          target: /home/saajra-api/htdocs/api.saajra.com
-          debug: true
+          port: ${{ secrets.SSH_PORT }}
+          source: "deploy.tgz"
+          target: "/tmp/savan_deploy/"
 
-      - name: Run Deployment Commands over SSH Key
-        uses: appleboy/ssh-action@master
+      - name: Install, restart with PM2, reload Nginx (ssh)
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VM_SSH_HOST }}
           username: ${{ secrets.SSH_USER_NAME }}
           password: ${{ secrets.SSH_PASSWORD }}
-          port: 22
+          port: ${{ secrets.SSH_PORT }}
           script: |
-            cd /home/saajra-api/htdocs/api.saajra.com
-            composer install --no-interaction --optimize-autoloader --no-dev
-            php artisan key:generate
-            php artisan optimize:clear
-            php artisan cache:clear
-            php artisan route:cache
-            php artisan route:clear
-            php artisan view:clear
-            php artisan config:cache
-            php artisan db:seed
-            sudo chown -R www-data:www-data /home/saajra-api/htdocs/api.saajra.com
-            chmod -R 755 /home/saajra-api/htdocs/api.saajra.com
-            chmod -R 777 /home/saajra-api/htdocs/api.saajra.com/storage
-            chmod -R 777 /home/saajra-api/htdocs/api.saajra.com/bootstrap
-            chmod -R 777 /home/saajra-api/htdocs/api.saajra.com/public
+            set -euo pipefail
+
+            APP_DIR="/home/saajra-api/htdocs/api.saajra.com"
+            TMP_DIR="/tmp/savan_deploy"
+
+            sudo mkdir -p "$APP_DIR" "$TMP_DIR"
+            sudo chown -R "$USER":"$USER" "$APP_DIR" "$TMP_DIR"
+
+            # Unpack the new code into the app directory
+            tar -xzf "$TMP_DIR/deploy.tgz" -C "$APP_DIR"
+
+            cd "$APP_DIR"
+
+            # (Optional) ensure correct Node version if you use nvm
+            if command -v nvm >/dev/null 2>&1; then
+              export NVM_DIR="$HOME/.nvm"
+              [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+              nvm install --lts >/dev/null 2>&1 || true
+              nvm use --lts
+              hash -r
+            fi
+
+            node -v
+            npm -v
+
+            # Install deps
+            npm install --no-audit --no-fund
+
+            # PM2: restart if exists; otherwise start with PORT=5002
+            if pm2 describe realstate-node-app >/dev/null 2>&1; then
+              pm2 restart savan-backend-app
+            else
+              PORT=5002 pm2 start npm --name "savan-backend-app" -- start
+            fi
+
+            pm2 save
+
+            # Reload/restart nginx (choose one)
+            sudo systemctl reload nginx || sudo systemctl restart nginx
+
+
+
+          
