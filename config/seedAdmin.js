@@ -8,12 +8,6 @@ async function seedAdmin() {
       password: 'admin123',
       role: 'admin'
     },
-    {
-      name: 'Salesperson',
-      email: 'sales@admin.com',
-      password: 'sales123',
-      role: 'salesperson'
-    },
     
   ];
 
