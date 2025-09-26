@@ -16,7 +16,7 @@ const options = {
    servers: [
      {
        // url: 'http://localhost:5000',
-       url: `http://${ip.address()}:5002`||'http://localhost:5002',
+       url: `https://${ip.address()}:5002`||'http://localhost:5002',
        description: 'Development server',
      },
    ],
