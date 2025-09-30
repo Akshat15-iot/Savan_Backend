@@ -161,8 +161,8 @@ const updateProject = async (req, res) => {
 
     let updateData = { projectName, budget, city, category, subType, startDate };
 
-    if (req.files && req.files.length > 0) {
-      updateData.images = req.files.map(file => ({
+    if (req.files && req.files.images && req.files.images.length > 0) {
+      updateData.images = req.files.images.map(file => ({
         url: `/uploads/projects/${file.filename}`,
         caption: file.originalname
       }));
