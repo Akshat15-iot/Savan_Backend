@@ -83,8 +83,16 @@ const createProject = async (req, res) => {
     const { projectName, budget, city, category, subType, startDate } = req.body;
 
     let images = [];
-    if (req.files && req.files.length > 0) {
-      images = req.files.map(file => ({
+
+    if (req.file) {
+      // For single file upload
+      images.push({
+        url: `/uploads/projects/${req.file.filename}`,
+        caption: req.file.originalname
+      });
+    } else if (req.files && req.files.images) {
+      // For multiple file upload
+      images = req.files.images.map(file => ({
         url: `/uploads/projects/${file.filename}`,
         caption: file.originalname
       }));
