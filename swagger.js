@@ -15,8 +15,8 @@ const options = {
    },
    servers: [
      {
-        url: 'https://api.saajra.com',
-       //url: `http://${ip.address()}:5002`||`https://${ip.address()}:5002`,
+       url: 'https://api.saajra.com:5002',
+//url: `http://${ip.address()}:5002`||`https://${ip.address()}:5002`,
        description: 'Development server',
      },
    ],

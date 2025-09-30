@@ -109,10 +109,11 @@ const createProject = async (req, res) => {
       createdBy: req.user._id,
       companyId
     });
-
+ 
     await newProject.save();
 
     const [formattedProject] = formatProjectImages([newProject], req);
+    console.log(req.files);
     res.status(201).json({ message: 'Project created successfully', project: formattedProject });
   } catch (error) {
     console.error('Create project error:', error);
@@ -172,6 +173,7 @@ const updateProject = async (req, res) => {
     if (!project) return res.status(404).json({ message: 'Project not found' });
 
     const [formattedProject] = formatProjectImages([project], req);
+    console.log(req.files)
     res.json({ message: 'Project updated successfully', project: formattedProject });
   } catch (error) {
     console.error('Update project error:', error);
